@@ -1,0 +1,52 @@
+name: Publish both websites
+on:
+  push:
+    branches: [main]
+    paths: ['source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore verified project source
+        run: |
+          cat source.*.b64 | base64 --decode > source.zip
+          echo 'cec73ae53667148fbe9605cd220e09d6a5d310acc85cebb874222afe1e531e8b  source.zip' | sha256sum --check
+          unzip -o source.zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Restore binary assets
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          for p in Path('site').rglob('*.b64'):
+              p.with_suffix('').write_bytes(base64.b64decode(p.read_text()))
+              p.unlink()
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
