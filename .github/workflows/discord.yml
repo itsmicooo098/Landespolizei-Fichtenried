@@ -20,10 +20,14 @@ jobs:
           cat source.*.b64 | base64 --decode > source.zip
           echo 'cec73ae53667148fbe9605cd220e09d6a5d310acc85cebb874222afe1e531e8b  source.zip' | sha256sum --check
           unzip -o source.zip
+      - name: Apply verified portal update
+        run: |
+          base64 --decode portal-update.b64 > portal-update.zip
+          echo '2af1b5f0d9758e996ec04025c143cb6f1508b97aeac8269d035aa8be233b3a54  portal-update.zip' | sha256sum --check
+          unzip -o portal-update.zip
       - run: node backend/notify.mjs
         env:
           GITHUB_REPOSITORY_VISIBILITY: public
           FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
           FIREBASE_NOTIFIER_EMAIL: ${{ secrets.FIREBASE_NOTIFIER_EMAIL }}
           FIREBASE_NOTIFIER_PASSWORD: ${{ secrets.FIREBASE_NOTIFIER_PASSWORD }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
