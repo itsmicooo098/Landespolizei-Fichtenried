@@ -23,7 +23,7 @@ jobs:
       - name: Apply verified portal update
         run: |
           base64 --decode portal-update.b64 > portal-update.zip
-          echo '68e7b565231aec666ef76bb170b08281174a1e73a05fae3ead3b923014890523  portal-update.zip' | sha256sum --check
+          echo 'dd980198a6c9703d03e3ef2b23ce3ead1ac6cb223988096fed8c6fe73c122da5  portal-update.zip' | sha256sum --check
           unzip -o portal-update.zip
       - run: node backend/notify.mjs
         env:
