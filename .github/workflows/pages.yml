@@ -30,7 +30,7 @@ jobs:
           base64 --decode portal-update.b64 > portal-update.zip
           actual=$(sha256sum portal-update.zip | cut -d' ' -f1)
           case "$actual" in
-            2e2315725322f6726e17aba8d00fa86ca5f723db87609784e82927b4178702e3|4b08ba3837aa49d9548c7cdadf95bafa88ff06d7b368ee03d3afbd1c1f88dda2|cbdcd92e418766f1a3edcd1718bea2af87cebc0a9f0ae4f937494ab30fd4249d|f9383f7bbae5b9f200a71b11b174e7b2db8b43cd2f36051a21ed242fc3ec437e|4ca615ecef9bc722aa1b41345b28a2cd37236b0691099d57c1f2e7ac5e14ab61) ;;
+            2e2315725322f6726e17aba8d00fa86ca5f723db87609784e82927b4178702e3|4b08ba3837aa49d9548c7cdadf95bafa88ff06d7b368ee03d3afbd1c1f88dda2|cbdcd92e418766f1a3edcd1718bea2af87cebc0a9f0ae4f937494ab30fd4249d|f9383f7bbae5b9f200a71b11b174e7b2db8b43cd2f36051a21ed242fc3ec437e|4ca615ecef9bc722aa1b41345b28a2cd37236b0691099d57c1f2e7ac5e14ab61|ed45960c38ca520e18fc9e8a3df58972b3aceafd41f57115001a61753dff3414|4b1fdf5d1cc7bfc9b2e25336c497a4e5ddb986059c05abb64ab5892e777af844) ;;
             *) echo "Unrecognized portal update checksum: $actual"; exit 1 ;;
           esac
           unzip -o portal-update.zip
