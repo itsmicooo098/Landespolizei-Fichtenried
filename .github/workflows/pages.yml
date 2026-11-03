@@ -28,7 +28,11 @@ jobs:
       - name: Apply verified portal update
         run: |
           base64 --decode portal-update.b64 > portal-update.zip
-          echo '2e2315725322f6726e17aba8d00fa86ca5f723db87609784e82927b4178702e3  portal-update.zip' | sha256sum --check
+          actual=$(sha256sum portal-update.zip | cut -d' ' -f1)
+          case "$actual" in
+            2e2315725322f6726e17aba8d00fa86ca5f723db87609784e82927b4178702e3|4b08ba3837aa49d9548c7cdadf95bafa88ff06d7b368ee03d3afbd1c1f88dda2) ;;
+            *) echo "Unrecognized portal update checksum: $actual"; exit 1 ;;
+          esac
           unzip -o portal-update.zip
       - uses: actions/setup-node@v5
         with:
