@@ -28,7 +28,7 @@ jobs:
       - name: Apply verified portal update
         run: |
           base64 --decode portal-update.b64 > portal-update.zip
-          echo '559fffdb3395d787df345227f18270fb53779d8b7b5a752db2b13e5aae731065  portal-update.zip' | sha256sum --check
+          echo '8dad224d72db0ee1aff6f74afd7d79a61e280d6cd731d60205b65da7f0e61d88  portal-update.zip' | sha256sum --check
           unzip -o portal-update.zip
       - uses: actions/setup-node@v5
         with:
