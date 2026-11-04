@@ -53,16 +53,24 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          patches = [
-              (Path('backend/firestore.rules'), "    && (!exists(/databases/$(database)/documents/limits/$(uid)) || resource.data.at < request.time-duration.value(60,'s'))\\n", ""),
+          rules = Path('backend/firestore.rules')
+          lines = rules.read_text().splitlines(keepends=True)
+          hits = [i for i, line in enumerate(lines) if "duration.value(60,'s')" in line]
+          if len(hits) > 1:
+              raise SystemExit(f'Expected at most one cooldown rule, found {len(hits)}')
+          if hits:
+              del lines[hits[0]]
+              rules.write_text(''.join(lines))
+          targets = [
               (Path('site/assets/spark.js'), "try{await batch.commit();}catch(e){if(e.code==='permission-denied')throw Error('Einreichung nicht möglich. Pflichtfelder prüfen und zwischen Anträgen mindestens eine Minute warten. Ihre Angaben können Sie weiterhin als Offline-Kopie sichern.');throw e;}", "try{await batch.commit();}catch(e){if(e.code==='permission-denied')throw Error('Einreichung nicht möglich. Bitte Pflichtfelder prüfen oder es erneut versuchen. Ihre Angaben können Sie weiterhin als Offline-Kopie sichern.');throw e;}"),
               (Path('tests/rules.test.mjs'), "test('Second submission within a minute fails',async()=>{await assertFails(submit('citizen','LF-2026-'+'C'.repeat(20)))});", "test('Citizens can submit multiple requests without waiting a minute',async()=>{await assertSucceeds(submit('citizen','LF-2026-'+'C'.repeat(20)))});"),
           ]
-          for path, old, new in patches:
+          for path, old, new in targets:
               text = path.read_text()
-              if text.count(old) != 1:
-                  raise SystemExit(f'Expected one target in {path}, found {text.count(old)}')
-              path.write_text(text.replace(old, new, 1))
+              if text.count(old) == 1:
+                  path.write_text(text.replace(old, new, 1))
+              elif new not in text:
+                  raise SystemExit(f'Could not find expected target in {path}')
           PY
       - uses: actions/setup-node@v5
         with:
