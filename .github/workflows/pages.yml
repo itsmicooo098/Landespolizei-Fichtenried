@@ -2,7 +2,7 @@ name: Publish both websites
 on:
   push:
     branches: [main]
-    paths: ['portal-update.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+    paths: ['portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,6 +44,11 @@ jobs:
           base64 --decode staff-directory-patch.b64 > staff-directory-patch.zip
           echo '91554df822d8a3b49612d1d7ca512e9a95375518d08aa8d85124705cbd40be0b  staff-directory-patch.zip' | sha256sum --check
           unzip -o staff-directory-patch.zip
+      - name: Remove Discord construction blur
+        run: |
+          base64 --decode discord-visual-fix-v3.b64 > discord-visual-fix-v3.zip
+          echo '8a721c13f1416971c5c06dd9e41c7193d3883508021413265cc7065df08a69b8  discord-visual-fix-v3.zip' | sha256sum --check
+          unzip -o discord-visual-fix-v3.zip
       - uses: actions/setup-node@v5
         with:
           node-version: 22
