@@ -2,7 +2,7 @@ name: Publish both websites
 on:
   push:
     branches: [main]
-    paths: ['portal-update.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+    paths: ['portal-update.b64', 'staff-profiles-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,6 +34,11 @@ jobs:
             *) echo "Unrecognized portal update checksum: $actual"; exit 1 ;;
           esac
           unzip -o portal-update.zip
+      - name: Apply verified staff profile patch
+        run: |
+          base64 --decode staff-profiles-patch.b64 > staff-profiles-patch.zip
+          echo '38dcbf932563ffcaa9d2670dac80615b56d8635bc9ff24cc5af96386e23777dd  staff-profiles-patch.zip' | sha256sum --check
+          unzip -o staff-profiles-patch.zip
       - uses: actions/setup-node@v5
         with:
           node-version: 22
