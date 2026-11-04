@@ -31,9 +31,9 @@ jobs:
           unzip -o portal-update.zip
       - name: Apply verified Discord worker patch
         run: |
-          base64 --decode discord-access-patch.b64 > discord-access-patch.zip
-          echo '5033bd7ce8eda093da25fb0f0c38c8cc7103317a1cd6ac9bd72e7750ac12b8e2  discord-access-patch.zip' | sha256sum --check
-          unzip -o discord-access-patch.zip
+          base64 --decode discord-access-patch-v2.b64 > discord-access-patch-v2.zip
+          echo 'ccd166218cac9cb57e57aa8d5a244369618bcf8a7a0de8602881df86e323d0d9  discord-access-patch-v2.zip' | sha256sum --check
+          unzip -o discord-access-patch-v2.zip
       - run: node backend/notify.mjs
         env:
           GITHUB_REPOSITORY_VISIBILITY: public
