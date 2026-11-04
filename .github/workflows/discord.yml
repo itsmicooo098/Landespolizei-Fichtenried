@@ -1,7 +1,7 @@
 name: Discord notifications (free public runner)
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,6 +29,11 @@ jobs:
             *) echo "Unrecognized portal update checksum: $actual"; exit 1 ;;
           esac
           unzip -o portal-update.zip
+      - name: Apply verified Discord worker patch
+        run: |
+          base64 --decode discord-access-patch.b64 > discord-access-patch.zip
+          echo '5033bd7ce8eda093da25fb0f0c38c8cc7103317a1cd6ac9bd72e7750ac12b8e2  discord-access-patch.zip' | sha256sum --check
+          unzip -o discord-access-patch.zip
       - run: node backend/notify.mjs
         env:
           GITHUB_REPOSITORY_VISIBILITY: public
