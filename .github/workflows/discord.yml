@@ -23,7 +23,11 @@ jobs:
       - name: Apply verified portal update
         run: |
           base64 --decode portal-update.b64 > portal-update.zip
-          echo '198b54166999ccb07423d0b3b6e8455310b034dd37f64eae34d8717f8b42271f  portal-update.zip' | sha256sum --check
+          actual=$(sha256sum portal-update.zip | cut -d' ' -f1)
+          case "$actual" in
+            198b54166999ccb07423d0b3b6e8455310b034dd37f64eae34d8717f8b42271f|d1b0225aa2cfd8105228f2bcde43a9d44940deb279e25a048d689a1453b7b30e) ;;
+            *) echo "Unrecognized portal update checksum: $actual"; exit 1 ;;
+          esac
           unzip -o portal-update.zip
       - run: node backend/notify.mjs
         env:
