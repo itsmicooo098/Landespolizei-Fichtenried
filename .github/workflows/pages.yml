@@ -2,7 +2,7 @@ name: Publish both websites
 on:
   push:
     branches: [main]
-    paths: ['portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+    paths: ['leadership-name-fields-patch.b64', 'portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,6 +72,11 @@ jobs:
               elif new not in text:
                   raise SystemExit(f'Could not find expected target in {path}')
           PY
+      - name: Apply leadership name display fix
+        run: |
+          base64 --decode leadership-name-fields-patch.b64 > leadership-name-fields-patch.zip
+          echo '657dbce1c7aece4c865826066f9e5d7c60443f641b306df0af08f00264956b8a  leadership-name-fields-patch.zip' | sha256sum --check
+          unzip -o leadership-name-fields-patch.zip
       - uses: actions/setup-node@v5
         with:
           node-version: 22
