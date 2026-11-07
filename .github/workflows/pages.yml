@@ -77,6 +77,49 @@ jobs:
           base64 --decode leadership-name-fields-patch.b64 > leadership-name-fields-patch.zip
           echo '657dbce1c7aece4c865826066f9e5d7c60443f641b306df0af08f00264956b8a  leadership-name-fields-patch.zip' | sha256sum --check
           unzip -o leadership-name-fields-patch.zip
+      - name: Add Abholbereit case status
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          changes = {
+              Path('site/assets/models.js'): [
+                  ("'Angenommen','Abgeschlossen','Abgelehnt'", "'Angenommen','Abholbereit','Abgeschlossen','Abgelehnt'"),
+              ],
+              Path('backend/firestore.rules'): [
+                  ("'Angenommen','Abgeschlossen','Abgelehnt'", "'Angenommen','Abholbereit','Abgeschlossen','Abgelehnt'"),
+              ],
+              Path('site/assets/app.js'): [
+                  ("'Angenommen':3,'Abgeschlossen':3", "'Angenommen':3,'Abholbereit':3,'Abgeschlossen':3"),
+                  ("if(status==='Abgelehnt'&&i===3)label='Abgelehnt';", "if(status==='Abholbereit'&&i===3)label='Abholbereit';if(status==='Abgelehnt'&&i===3)label='Abgelehnt';"),
+                  ("models.js?v=fuehrungszeugnis-20261104a", "models.js?v=abholbereit-20261107"),
+              ],
+              Path('site/leitung/assets/app.js'): [
+                  ("./features.js?v=discord-open-20261105", "./features.js?v=abholbereit-20261107"),
+                  ("['Abgeschlossen','Angenommen'].includes(status)", "['Abgeschlossen','Angenommen','Abholbereit'].includes(status)"),
+              ],
+              Path('site/leitung/assets/features.js'): [
+                  ("models.js?v=fuehrungszeugnis-20261104a", "models.js?v=abholbereit-20261107"),
+              ],
+              Path('site/leitung/login-guard.js'): [
+                  ("app.js?v=case-name-fields-20261106", "app.js?v=abholbereit-20261107"),
+              ],
+              Path('site/leitung/index.html'): [
+                  ("login-guard.js?v=discord-open-20261105", "login-guard.js?v=abholbereit-20261107"),
+              ],
+              Path('site/index.html'): [
+                  ("assets/app.js?v=staff-directory-20261104a", "assets/app.js?v=abholbereit-20261107"),
+              ],
+          }
+          for path, pairs in changes.items():
+              content = path.read_text()
+              for old, new in pairs:
+                  if new in content:
+                      continue
+                  if content.count(old) != 1:
+                      raise SystemExit(f'Expected exactly one replacement target in {path}: {old}')
+                  content = content.replace(old, new, 1)
+              path.write_text(content)
+          PY
       - uses: actions/setup-node@v5
         with:
           node-version: 22
