@@ -125,6 +125,23 @@ jobs:
           base64 --decode leadership-sync-chat-patch.b64 > leadership-sync-chat-patch.zip
           echo '3322dfc6a4794fcc9e54aa7bc1ee249d0d218c088dd7525a1063a9b96e4dfd84  leadership-sync-chat-patch.zip' | sha256sum --check
           unzip -o leadership-sync-chat-patch.zip
+      - name: Make Discord audit test fixtures unique
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('tests/rules.test.mjs')
+          text = p.read_text()
+          replacements = [
+              ("const fakeWebhook=", "let discordAuditSequence=0;\nconst fakeWebhook="),
+              ("auditId='A'.repeat(32)", "auditId=(++discordAuditSequence).toString(16).toUpperCase().padStart(32,'0')"),
+              ("doc(d,'portalAudit','A'.repeat(32))", "doc(d,'portalAudit','00000000000000000000000000000001')"),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one test fixture match: {old}')
+              text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
       - uses: actions/setup-node@v5
         with:
           node-version: 22
