@@ -2,7 +2,7 @@ name: Publish both websites
 on:
   push:
     branches: [main]
-    paths: ['leadership-name-fields-patch.b64', 'portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+    paths: ['leadership-sync-chat-patch.b64', 'leadership-name-fields-patch.b64', 'portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -120,6 +120,11 @@ jobs:
                   content = content.replace(old, new, 1)
               path.write_text(content)
           PY
+      - name: Apply verified staff sync and case chat fix
+        run: |
+          base64 --decode leadership-sync-chat-patch.b64 > leadership-sync-chat-patch.zip
+          echo '3322dfc6a4794fcc9e54aa7bc1ee249d0d218c088dd7525a1063a9b96e4dfd84  leadership-sync-chat-patch.zip' | sha256sum --check
+          unzip -o leadership-sync-chat-patch.zip
       - uses: actions/setup-node@v5
         with:
           node-version: 22
