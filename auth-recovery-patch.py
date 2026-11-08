@@ -33,3 +33,47 @@ sub('site/assets/spark.js',
 sub('site/leitung/assets/app.js',
  "const result=await callFunction('listRequests');records=result.records||[];updateMetrics();renderRows()}",
  "const result=await callFunction('listRequests');records=result.records||[];updateMetrics();renderRows();if(result.internalUnavailable)toast('Interne Vorgänge wurden von Firebase nicht freigegeben.')}")
+
+# Remove public personnel profiles and every client-side sync/write path.
+import re
+v='no-public-personnel-20261108e'
+for f in ['site/leitung/assets/app.js','site/leitung/login-guard.js','site/leitung/index.html','site/assets/firebase-client.js','site/index.html']:
+ p=Path(f);s=p.read_text();s=s.replace('login-permission-20261108d',v).replace('login-permission-20261108b',v);p.write_text(s)
+
+def rx(f, pattern, replacement, n=1):
+ p=Path(f);s=p.read_text();s2,count=re.subn(pattern,replacement,s,count=n,flags=re.S)
+ assert count==n,(f,pattern,count)
+ p.write_text(s2)
+
+# No public staff cards, details, or profile modal remain in the citizen site.
+rx('site/index.html',r'<section class="section people" id="leitung">.*?</section>','')
+rx('site/index.html',r'<div class="profile-backdrop" id="profileModal".*?</div></div>','')
+s=Path('site/index.html').read_text().replace('<a href="#leitung">Personal</a>','').replace('<a href="#leitung">Personal</a>','')
+Path('site/index.html').write_text(s)
+rx('site/assets/app.js',r'const people=\[.*?\];\nconst \$=', 'const $=')
+sub('site/assets/app.js','let currentService=null,previousFocus=null,personFocus=null,activePeople=\'alle\',activeReceipt=null,activeSubmission=null,toastTimer,draftTimer,formOpenedAt=0,publicProfiles=[],stopPublicProfiles=null;','let currentService=null,previousFocus=null,activeReceipt=null,activeSubmission=null,toastTimer,draftTimer,formOpenedAt=0;')
+rx('site/assets/app.js',r'const nameInitials=.*?function rankBadge', 'function rankBadge')
+rx('site/assets/app.js',r'function renderPeople\(\).*?function fieldControl', 'function fieldControl')
+sub('site/assets/app.js','renderRanks(\'hoeher\');renderPeople();renderRecent();','renderRanks(\'hoeher\');renderRecent();')
+rx('site/assets/app.js',r'waitCloud\(\)\.then\(async cloud=>\{stopPublicProfiles\?\.\(\);.*?\}\)\.catch\(\(\)=>\{\}\);','')
+rx('site/assets/app.js',r'document\.querySelectorAll\(\'\[data-person-filter\]\'\).*?\}\);document\.addEventListener\(\'click\'', 'document.addEventListener(\'click\'')
+sub('site/assets/app.js',"$('#profileClose').onclick=closeProfile;",'')
+sub('site/assets/app.js',"$('#profileModal').onclick=e=>{if(e.target===$('#profileModal'))closeProfile()};",'')
+sub('site/assets/app.js',"if(!$('#profileModal').hidden)closeProfile();else if(!$('#serviceModal').hidden)closeService()","if(!$('#serviceModal').hidden)closeService()")
+sub('site/assets/app.js',"const modal=!$('#profileModal').hidden?$('#profileModal'):!$('#serviceModal').hidden?$('#serviceModal'):null","const modal=!$('#serviceModal').hidden?$('#serviceModal'):null")
+sub('site/assets/firebase-client.js',',publicProfiles:spark.publicProfiles,watchPublicProfiles:spark.watchPublicProfiles','')
+sub('site/assets/spark.js',"export async function publicProfiles(){await protect();const s=await f.getDocs(f.query(f.collection(db,'publicProfiles'),f.limit(100)));return s.docs.map(dto);}\nexport function watchPublicProfiles(onRows,onError){let active=true,stop=()=>{};protect().then(()=>{if(active)stop=f.onSnapshot(f.query(f.collection(db,'publicProfiles'),f.limit(100)),s=>onRows(s.docs.map(dto)),onError)}).catch(onError);return()=>{active=false;stop()};}\n",'')
+rx('site/assets/spark.js',r'async function syncPublicProfiles\(staffRows\).*?\n(?=export async function call)', '')
+rx('site/assets/spark.js',r" if\(name==='syncPublicDirectory'\).*?\n",'')
+sub('site/assets/spark.js',"await syncPublicProfiles(rows);",'')
+# Staff account management must only update private staff records.
+rx('site/assets/spark.js',r"const profileRef=ref\('publicProfiles',p\.uid\),oldProfile=await f\.getDoc\(profileRef\),d=oldProfile\.exists\(\)\?oldProfile\.data\(\):\{\};b\.set\(profileRef,\{.*?\}\);",'')
+rx('site/assets/spark.js',r"const profileRef=ref\('publicProfiles',p\.uid\),oldProfile=await f\.getDoc\(profileRef\),d=oldProfile\.exists\(\)\?oldProfile\.data\(\):\{\};b\.set\(profileRef,\{.*?\}\);",'')
+sub('site/assets/spark.js',"b.set(ref('publicProfiles',user.uid),{displayName,profileKey:username,badge,rank,phone:'',motto:'',description:'',active:true,updatedAt:now(),auditId:aid});",'')
+rx('site/assets/spark.js',r" if\(name==='getPublicProfile'\).*?\n",'')
+rx('site/assets/spark.js',r" if\(name==='savePublicProfile'\).*?\n",'')
+# Remove the public-profile editor while retaining password settings.
+rx('site/leitung/index.html',r'<div id="accountOverlay".*?<hr><form id="passwordSettingsForm">','<div id="accountOverlay" class="drawer-backdrop" hidden><section class="drawer account-drawer" role="dialog" aria-modal="true" aria-labelledby="accountTitle"><div class="drawer-head"><div><div class="overline">PERSÖNLICHE EINSTELLUNGEN</div><h2 id="accountTitle">Eigenes Dienstkonto</h2></div><button id="accountClose" class="circle-button" type="button" aria-label="Kontoeinstellungen schließen">×</button></div><div class="drawer-scroll"><p>Hier kannst du das Passwort deines Dienstkontos ändern.</p><form id="passwordSettingsForm">')
+rx('site/leitung/assets/app.js',r'async function openAccountSettings\(\).*?\nfunction closeAccountSettings',"function openAccountSettings(){const overlay=$('#accountOverlay');overlay.hidden=false;document.body.style.overflow='';$('#currentPassword').focus()}\nfunction closeAccountSettings")
+rx('site/leitung/assets/app.js',r'async function saveProfileSettings\(e\).*?\n(?=async function changeAccountPassword)', '')
+sub('site/leitung/assets/app.js',"$('#profileSettingsForm').addEventListener('submit',saveProfileSettings);",'')
