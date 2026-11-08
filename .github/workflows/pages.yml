@@ -2,7 +2,7 @@ name: Publish both websites
 on:
   push:
     branches: [main]
-    paths: ['leadership-sync-chat-patch.b64', 'staff-account-directory-fix.b64', 'leadership-name-fields-patch.b64', 'portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', '.github/workflows/pages.yml']
+    paths: ['leadership-sync-chat-patch.b64', 'staff-account-directory-fix.b64', 'leadership-name-fields-patch.b64', 'portal-update.b64', 'discord-visual-fix-v3.b64', 'staff-profiles-patch.b64', 'staff-directory-patch.b64', 'source.*.b64', 'site/**', 'backend/firestore.rules', 'tests/**', 'package.json', 'auth-recovery-patch.py', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
