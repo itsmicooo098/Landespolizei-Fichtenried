@@ -147,6 +147,8 @@ jobs:
               text = text.replace(old, new, 1)
           p.write_text(text)
           PY
+      - name: Restore resilient login patch
+        run: python3 auth-recovery-patch.py
       - uses: actions/setup-node@v5
         with:
           node-version: 22
