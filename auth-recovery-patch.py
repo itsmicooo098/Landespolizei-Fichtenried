@@ -77,3 +77,15 @@ rx('site/leitung/index.html',r'<div id="accountOverlay".*?<hr><form id="password
 rx('site/leitung/assets/app.js',r'async function openAccountSettings\(\).*?\nfunction closeAccountSettings',"function openAccountSettings(){const overlay=$('#accountOverlay');overlay.hidden=false;document.body.style.overflow='';$('#currentPassword').focus()}\nfunction closeAccountSettings")
 rx('site/leitung/assets/app.js',r'async function saveProfileSettings\(e\).*?\n(?=async function changeAccountPassword)', '')
 sub('site/leitung/assets/app.js',"$('#profileSettingsForm').addEventListener('submit',saveProfileSettings);",'')
+
+# Keep the repository rules aligned with the live change: old public profiles are inaccessible.
+rx('backend/firestore.rules',r'  match /publicProfiles/\{uid\} \{[\s\S]*?\n  \}', '  match /publicProfiles/{uid} {\n   allow read, write: if false;\n  }')
+rx('tests/rules.test.mjs',r"test\('Inactive staff accounts remain in the public people directory'.*?(?=function addAudit)", """test('Public personnel profile collection is closed',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{await setDoc(doc(c.firestore(),'publicProfiles','stored'),{displayName:'Stored profile',profileKey:'stored',phone:'',motto:'',description:'',active:true,updatedAt:new Date()});});
+ await assertFails(getDoc(doc(db('citizen'),'publicProfiles','stored')));
+ await assertFails(getDocs(collection(db('citizen'),'publicProfiles')));
+ const d=db('boss'),b=writeBatch(d),aid=addAudit(b,'boss','update_public_profile','','Profile collection is closed');
+ b.set(doc(d,'publicProfiles','new-profile'),{displayName:'Hidden profile',profileKey:'hidden',badge:'',rank:'',phone:'',motto:'',description:'',active:true,updatedAt:serverTimestamp(),auditId:aid});
+ await assertFails(b.commit());
+});
+""")
