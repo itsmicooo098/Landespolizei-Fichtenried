@@ -36,7 +36,7 @@ sub('site/leitung/assets/app.js',
 
 # Remove public personnel profiles and every client-side sync/write path.
 import re
-v='internal-case-repair-20261108a'
+v='internal-case-repair-20261108b'
 for f in ['site/leitung/assets/app.js','site/leitung/login-guard.js','site/leitung/index.html','site/assets/firebase-client.js','site/index.html']:
  p=Path(f);s=p.read_text();s=s.replace('login-permission-20261108d',v).replace('login-permission-20261108b',v);p.write_text(s)
 
@@ -103,7 +103,11 @@ p.write_text(s)
 
 
 # Internal ticket categories, evidence, bearer-code tracking and two-way chat.
-v='internal-case-repair-20261108b'
+v='internal-case-repair-20261108c'
+# Keep the citizen live-chat unsubscribe handle defined before event wiring.
+sub('site/leitung/assets/app.js',
+ "let spark=null,auth=null,signIn=null,signOut=null,getIdTokenResult=null,httpsCallable=null,functions=null,updateProfile=null,updatePassword=null,reauthenticateWithCredential=null,EmailAuthProvider=null,loading=false;",
+ "let spark=null,auth=null,signIn=null,signOut=null,getIdTokenResult=null,httpsCallable=null,functions=null,updateProfile=null,updatePassword=null,reauthenticateWithCredential=null,EmailAuthProvider=null,loading=false,internalChatStop=()=>{};")
 # Login dialogs: explicit category descriptions and attachment field.
 sub('site/leitung/index.html',
  '<div class="internal-ticket-grid"><label>Name<input id="internalTicketName"',
