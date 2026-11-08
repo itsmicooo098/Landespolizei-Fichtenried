@@ -245,21 +245,26 @@ sub('backend/firestore.rules',
 sub('backend/firestore.rules',
  "(aid.matches('[A-F0-9]{32}') || (request.resource.data.action=='delete_publication' && aid==request.resource.data.targetId))",
  "(aid.matches('[A-F0-9]{32}') || (request.resource.data.action in ['delete_publication','delete_request','delete_internal_case'] && aid==request.resource.data.targetId))")
-sub('backend/firestore.rules',
+def optional_sub(f,a,b):
+ p=Path(f);s=p.read_text()
+ if a in s:
+  assert s.count(a)==1,(f,a,s.count(a));p.write_text(s.replace(a,b))
+optional_sub('backend/firestore.rules',
  "['login','logout','view_requests','view_request','print_request','export_requests','download_attachment','update_request']",
  "['login','logout','view_requests','view_request','print_request','export_requests','download_attachment','update_request','delete_request']")
-sub('backend/firestore.rules',
+optional_sub('backend/firestore.rules',
  "['view_personnel','create_personnel','view_internal_case','update_internal_case','print_internal_case']",
  "['view_personnel','create_personnel','view_internal_case','update_internal_case','print_internal_case','delete_internal_case']")
-sub('backend/firestore.rules',
+optional_sub('backend/firestore.rules',
  "['view_request','print_request','download_attachment','update_request']",
  "['view_request','print_request','download_attachment','update_request','delete_request']")
 
 def rule_section(source,start,end,changes):
- a=source.index(start);b=source.index(end,a+len(start));block=source[a:b]
+ a=source.find(start);b=source.find(end,a+len(start)) if a>=0 else -1
+ if a<0 or b<0:return source
+ block=source[a:b]
  for old,new,count in changes:
-  assert block.count(old)==count,(start,old,block.count(old),count)
-  block=block.replace(old,new,count)
+  if block.count(old)==count:block=block.replace(old,new,count)
  return source[:a]+block+source[b:]
 
 rules=Path('backend/firestore.rules').read_text()
