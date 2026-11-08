@@ -1,5 +1,5 @@
 from pathlib import Path
-v='login-permission-20261108b'
+v='login-permission-20261108c'
 def sub(f,a,b,n=1):
  p=Path(f);s=p.read_text();assert s.count(a)==n,(f,a,s.count(a));p.write_text(s.replace(a,b))
 sub('site/assets/spark.js',"async function protect(force=false){if(!appCheck)return null;return getToken(appCheck,force)}","async function protect(force=false,required=false){if(!appCheck){if(required)throw Error('CAPTCHA-Schutz fehlt');return null}try{return await getToken(appCheck,force)}catch(e){console.warn('App Check:',e?.code||e?.message);if(required)throw e;return null}}")
@@ -24,3 +24,6 @@ sub('site/leitung/assets/app.js',
 sub('site/assets/spark.js',
  " if(name==='audit'){const b=f.writeBatch(db);audit(b,p.action,p.targetId||'',p.detail||'');await b.commit();return {success:true};}",
  " if(name==='audit'){const b=f.writeBatch(db);audit(b,p.action,p.targetId||'',p.detail||'');try{await b.commit();return {success:true};}catch(error){if(error?.code==='permission-denied'&&['login','view_requests'].includes(p.action)){console.warn('Nicht-kritischer Sitzungs-/Ansichtsprotokolleintrag wurde von Firestore abgewiesen:',p.action);return {success:false};}throw error;}}")
+sub('site/leitung/assets/app.js',
+ "  try{const token={claims:await spark.role()};\n   access=capabilities(token.claims);if(!(access.personnel||access.cases)){showLogin();return}\n   showWorkspace(user.displayName||user.email?.split('@')[0]);await loadData();try{await log('login','','Sitzung wiederhergestellt')}catch(auditError){if(auditError?.code!=='permission-denied')throw auditError;console.warn('Sitzung konnte nicht protokolliert werden:',auditError.code);toast('Sitzung aktiv; Firebase blockiert derzeit den Protokolleintrag.')}}\n  catch(err){console.error('Session:',err.code||err.message);showLogin('Verbindung fehlgeschlagen. Bitte neu anmelden.')}",
+ "  let stage='Dienstkonto laden';try{const token={claims:await spark.role()};\n   stage='Berechtigungen prüfen';access=capabilities(token.claims);if(!(access.personnel||access.cases)){showLogin();return}\n   stage='Vorgänge laden';showWorkspace(user.displayName||user.email?.split('@')[0]);await loadData();stage='Anmeldung protokollieren';try{await log('login','','Sitzung wiederhergestellt')}catch(auditError){if(auditError?.code!=='permission-denied')throw auditError;console.warn('Sitzung konnte nicht protokolliert werden:',auditError.code);toast('Sitzung aktiv; Firebase blockiert derzeit den Protokolleintrag.')}}\n  catch(err){console.error('Session ('+stage+'):',err.code||err.message);showLogin('Verbindung bei „'+stage+'“ fehlgeschlagen ('+(err?.code||'Fehler')+').')}" )
