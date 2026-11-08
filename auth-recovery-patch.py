@@ -103,7 +103,7 @@ p.write_text(s)
 
 
 # Internal ticket categories, evidence, bearer-code tracking and two-way chat.
-v='internal-chat-status-fix-20261108d'
+v='case-delete-20261108e'
 # Keep the citizen live-chat unsubscribe handle defined before event wiring.
 sub('site/leitung/assets/app.js',
  "let spark=null,auth=null,signIn=null,signOut=null,getIdTokenResult=null,httpsCallable=null,functions=null,updateProfile=null,updatePassword=null,reauthenticateWithCredential=null,EmailAuthProvider=null,loading=false;",
@@ -128,6 +128,19 @@ sub('site/leitung/assets/app.js',
 sub('site/leitung/assets/app.js',
  " $('#openInternalTicket').addEventListener('click',()=>{$('#internalTicketDialog').showModal();$('#internalTicketName').focus()});$('#internalTicketClose').addEventListener('click',()=>$('#internalTicketDialog').close());$('#internalTicketForm').addEventListener('submit',submitInternalTicket);",
  " $('#openInternalTicket').addEventListener('click',()=>{$('#internalTicketDialog').showModal();$('#internalTicketName').focus()});$('#internalTicketClose').addEventListener('click',()=>$('#internalTicketDialog').close());$('#internalTicketForm').addEventListener('submit',submitInternalTicket);$('#openInternalTracking').onclick=()=>{$('#internalTrackingDialog').showModal();$('#internalTrackingId').focus()};$('#internalTrackingClose').onclick=()=>{internalChatStop();$('#internalTrackingDialog').close()};$('#internalTrackingDialog').addEventListener('close',()=>internalChatStop());$('#internalTrackingForm').addEventListener('submit',async e=>{e.preventDefault();const out=$('#internalTrackingResult'),msg=$('#internalTrackingMessage');msg.textContent='Vorgang wird geladen …';out.hidden=true;try{if(!spark)spark=await import('../../assets/spark.js?v='+v);const data=await spark.trackInternal({id:$('#internalTrackingId').value,accessCode:$('#internalTrackingCode').value});renderInternalTracking(data,out);msg.textContent='';out.hidden=false;}catch(err){msg.textContent=errorText(err)}});")
+# Add a destructive action to the case editor, with a confirmation and role-aware visibility.
+sub('site/leitung/index.html',
+ '<p id="updateMessage" class="status-text" role="status"></p></form><button id="loadHistory"',
+ '<p id="updateMessage" class="status-text" role="status"></p><button id="deleteRequest" type="button" class="delete-case-button full">Vorgang löschen</button></form><button id="loadHistory"')
+sub('site/leitung/assets/app.js',
+ "$('#newStatus').value=r.status;$('#internalNote').value=r.internalNote||'';$('#updateMessage').textContent='';",
+ "$('#newStatus').value=r.status;$('#internalNote').value=r.internalNote||'';$('#updateMessage').textContent='';$('#deleteRequest').hidden=activeRecord.internal?!(access.personnel||access.settings):activeRecord.serviceId==='bewerbung'?!(access.personnel||access.settings):!(access.cases||access.settings);")
+sub('site/leitung/assets/app.js',
+ 'async function exportRecords(){if(!records.length)',
+ "async function deleteActiveRequest(){if(!activeRecord)return;const record=activeRecord;if(!window.confirm('Sicher, dass Sie diesen Vorgang löschen wollen? Zugehöriger Chat, Verlauf und Unterlagen werden dauerhaft entfernt.'))return;const button=$('#deleteRequest'),message=$('#updateMessage');button.disabled=true;message.textContent='Vorgang und zugehörige Daten werden gelöscht …';try{await callFunction('deleteRequest',{id:record.id,internal:record.internal===true});await loadData();closeDetail();toast('Vorgang und zugehörige Daten gelöscht.')}catch(error){message.textContent=errorText(error)}finally{button.disabled=false}}\nasync function exportRecords(){if(!records.length)")
+sub('site/leitung/assets/app.js',
+ "$('#personnelForm').addEventListener('submit',savePersonnel);$('#updateForm').addEventListener('submit',updateRequest);",
+ "$('#personnelForm').addEventListener('submit',savePersonnel);$('#updateForm').addEventListener('submit',updateRequest);$('#deleteRequest').addEventListener('click',deleteActiveRequest);")
 # provide local view renderer used after bearer verification.
 sub('site/leitung/assets/app.js',
  'function initializeEvents(){initializeFeatures',
@@ -160,6 +173,11 @@ sub('site/assets/spark.js',
 sub('site/assets/spark.js',
  "b.update(r,{status,internalNote:note,assignee,priority,updatedAt:now(),updatedBy:uid(),auditId:aid});await b.commit();",
  "const stamp=now();b.update(r,{status,internalNote:note,assignee,priority,updatedAt:stamp,updatedBy:uid(),auditId:aid});b.update(ref('internalTracking',old.trackingKey),{status,publicMessage:String(p.publicMessage?.value??p.publicMessage??'').trim().slice(0,2000),updatedAt:stamp});await b.commit();")
+# Remove related case data before deleting the root document; case access stays role-gated.
+sub('site/assets/spark.js',
+ " if(name==='updateRequest'&&p.internal){",
+ """ if(name==='deleteRequest'){const internal=p.internal===true,a=capabilities(await role()),root=ref(internal?'internalCases':'requests',p.id),rootSnap=await f.getDoc(root);if(!rootSnap.exists())throw Error('Vorgang nicht gefunden.');const record=rootSnap.data(),canDelete=internal?(a.personnel||a.settings):record.serviceId==='bewerbung'?(a.personnel||a.settings):(a.cases||a.settings);if(!canDelete)throw Error('Sie haben keine Berechtigung, diesen Vorgang zu löschen.');const action=internal?'delete_internal_case':'delete_request',auditRef=ref('portalAudit',p.id),existingAudit=await f.getDoc(auditRef);if(existingAudit.exists()){const prior=existingAudit.data();if(prior.action!==action||prior.targetId!==p.id||prior.actorUid!==uid())throw Error('Das Löschprotokoll passt nicht zu diesem Vorgang.')}else{const auditBatch=f.writeBatch(db),detail=('Löschvorgang gestartet · '+(record.serviceTitle||'')).slice(0,300);auditBatch.set(auditRef,{action,targetId:p.id,detail,actorUid:uid(),actorEmail:auth.currentUser.email||'',at:now()});await auditBatch.commit();}const key=record.trackingKey,trackingBucket=internal?'internalTracking':'tracking',receiptBucket=internal?'internalReceipts':'receipts',childRefs=[];if(!internal){const history=await f.getDocs(f.collection(db,'requests',p.id,'history'));history.docs.forEach(d=>childRefs.push(d.ref));}if(key){const messages=await f.getDocs(f.collection(db,trackingBucket,key,'messages'));messages.docs.forEach(d=>childRefs.push(d.ref));}const receiptSnap=key?await f.getDoc(ref(receiptBucket,key)):null,attachments=record.attachments||receiptSnap?.data()?.attachments||[];if(key&&receiptSnap?.exists())for(let slot=0;slot<attachments.length;slot++){const chunks=await f.getDocs(f.collection(db,receiptBucket,key,'files',String(slot),'chunks'));chunks.docs.forEach(d=>childRefs.push(d.ref));}for(let offset=0;offset<childRefs.length;offset+=450){const batch=f.writeBatch(db);childRefs.slice(offset,offset+450).forEach(r=>batch.delete(r));await batch.commit();}const trackingRef=key?ref(trackingBucket,key):null,retentionRef=internal?null:ref('retentionJobs',p.id),[trackingSnap,retentionSnap]=await Promise.all([trackingRef?f.getDoc(trackingRef):Promise.resolve(null),retentionRef?f.getDoc(retentionRef):Promise.resolve(null)]),batch=f.writeBatch(db);batch.delete(root);if(trackingSnap?.exists())batch.delete(trackingRef);if(receiptSnap?.exists())batch.delete(ref(receiptBucket,key));if(retentionSnap?.exists())batch.delete(retentionRef);if(!internal)batch.delete(ref('notifications',p.id));await batch.commit();return {success:true};}
+ if(name==='updateRequest'&&p.internal){""")
 # internal attachments are read from their own receipt tree.
 sub('site/assets/spark.js',"if(!a.cases)throw Error('Keine Berechtigung für interne Vorgänge.')","if(!(a.personnel||a.settings))throw Error('Keine Berechtigung für interne Vorgänge.')")
 sub('site/assets/spark.js',
@@ -214,3 +232,55 @@ for f in ['site/leitung/index.html','site/leitung/login-guard.js','site/leitung/
  p=Path(f);s=p.read_text();import re;s=re.sub(r'(login-permission-20261108[be])',v,s);s=s.replace('staff-sync-20261107a',v).replace('fuehrungszeugnis-20261104a',v);p.write_text(s)
 sub('site/leitung/assets/app.css', '</style>', '</style>') if '</style>' in Path('site/leitung/assets/app.css').read_text() else None
 p=Path('site/leitung/assets/app.css');p.write_text(p.read_text()+'''\n.internal-ticket-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:18px 0}.internal-category-card{position:relative;display:block!important;letter-spacing:normal!important}.internal-category-card input{position:absolute;opacity:0;inset:0;width:100%;height:100%;cursor:pointer}.internal-category-card span{display:grid;grid-template-columns:28px 1fr;gap:2px 8px;align-items:center;height:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--heading);font-size:17px}.internal-category-card strong{font:800 12px Manrope,sans-serif}.internal-category-card small{grid-column:2;color:var(--muted);font:500 10px/1.5 'DM Sans',sans-serif;letter-spacing:normal}.internal-category-card:has(input:checked) span{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.internal-ticket-form input[type=file]{font:500 12px 'DM Sans',sans-serif}.internal-ticket-receipt{margin-top:12px;padding:14px;background:var(--bg);border:1px solid var(--gold);border-radius:5px}.internal-ticket-receipt p{overflow-wrap:anywhere;color:var(--gold);font-weight:800}.internal-ticket-receipt small{display:block;color:var(--muted);line-height:1.5}.internal-tracking-result{margin-top:16px;padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:5px}.internal-tracking-result .chat-feed{display:grid;gap:8px;max-height:280px;overflow:auto;margin:12px 0}.internal-track-refresh{width:100%;margin-top:12px}.internal-track-chat{display:grid;gap:8px;margin-top:14px}.internal-track-chat textarea{width:100%;padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px}.internal-tracking-result>p{color:var(--muted);font-size:12px}@media(max-width:540px){.internal-ticket-category-grid{grid-template-columns:1fr}}\n''')
+
+p=Path('site/leitung/assets/app.css');p.write_text(p.read_text()+'\n.delete-case-button{margin-top:12px;background:#2b1214;color:#f0a2a2;border:1px solid #8e454a}.delete-case-button:hover{background:#3a171a;border-color:#c96569}.delete-case-button:focus-visible{outline:2px solid #e08b8b;outline-offset:2px}\n')
+
+# Allow a logged, staff-authorized deletion of the complete case tree.
+sub('backend/firestore.rules',
+ "  function access(serviceId){return serviceId=='bewerbung' ? personnel() : cases();}",
+ """  function access(serviceId){return serviceId=='bewerbung' ? personnel() : cases();}
+  function deletionAuthorized(action,id){let p=/databases/$(database)/documents/portalAudit/$(id);return exists(p) && get(p).data.action==action && get(p).data.targetId==id && get(p).data.actorUid==request.auth.uid;}
+  function canDeleteRequest(id){let p=/databases/$(database)/documents/requests/$(id);return exists(p) && access(get(p).data.serviceId) && deletionAuthorized('delete_request',id);}
+  function canDeleteInternal(id){let p=/databases/$(database)/documents/internalCases/$(id);return personnel() && exists(p) && deletionAuthorized('delete_internal_case',id);}""")
+sub('backend/firestore.rules',
+ "(aid.matches('[A-F0-9]{32}') || (request.resource.data.action=='delete_publication' && aid==request.resource.data.targetId))",
+ "(aid.matches('[A-F0-9]{32}') || (request.resource.data.action in ['delete_publication','delete_request','delete_internal_case'] && aid==request.resource.data.targetId))")
+sub('backend/firestore.rules',
+ "['login','logout','view_requests','view_request','print_request','export_requests','download_attachment','update_request']",
+ "['login','logout','view_requests','view_request','print_request','export_requests','download_attachment','update_request','delete_request']")
+sub('backend/firestore.rules',
+ "['view_personnel','create_personnel','view_internal_case','update_internal_case','print_internal_case']",
+ "['view_personnel','create_personnel','view_internal_case','update_internal_case','print_internal_case','delete_internal_case']")
+sub('backend/firestore.rules',
+ "['view_request','print_request','download_attachment','update_request']",
+ "['view_request','print_request','download_attachment','update_request','delete_request']")
+
+def rule_section(source,start,end,changes):
+ a=source.index(start);b=source.index(end,a+len(start));block=source[a:b]
+ for old,new,count in changes:
+  assert block.count(old)==count,(start,old,block.count(old),count)
+  block=block.replace(old,new,count)
+ return source[:a]+block+source[b:]
+
+rules=Path('backend/firestore.rules').read_text()
+rules=rule_section(rules,'match /requests/{id} {','match /personnelActions/{id} {',[
+ ("allow delete: if notifier() && due(id);","allow delete: if canDeleteRequest(id) || (notifier() && due(id));",2)])
+rules=rule_section(rules,'match /tracking/{key} {','match /personnelActions/{id} {',[
+ ("allow delete: if notifier() && dueKey(key);","allow delete: if canDeleteRequest(resource.data.id) || (notifier() && dueKey(key));",1),
+ ("allow update,delete: if false;","allow update: if false;\n    allow delete: if canDeleteRequest(get(/databases/$(database)/documents/tracking/$(key)).data.id);",1)])
+rules=rule_section(rules,'match /receipts/{key} {','match /internalCases/{id} {',[
+ ("\n   allow delete: if notifier() && dueKey(key);","\n   allow delete: if canDeleteRequest(resource.data.id) || (notifier() && dueKey(key));",1),
+ ("\n    allow delete: if notifier() && dueKey(key);","\n    allow delete: if canDeleteRequest(get(/databases/$(database)/documents/receipts/$(key)).data.id) || (notifier() && dueKey(key));",1)])
+rules=rule_section(rules,'match /internalCases/{id} {','match /internalReceipts/{key} {',[
+ ("allow delete: if false;","allow delete: if canDeleteInternal(id);",1)])
+rules=rule_section(rules,'match /internalReceipts/{key} {','match /internalTracking/{key} {',[
+ ("match /internalReceipts/{key} {\n   allow get:","match /internalReceipts/{key} {\n   allow delete: if canDeleteInternal(resource.data.id);\n   allow get:",1),
+ ("match /files/{slot}/chunks/{chunk} {\n    allow get: if signed() && exists(/databases/$(database)/documents/internalTracking/$(key));","match /files/{slot}/chunks/{chunk} {\n    allow delete: if canDeleteInternal(get(/databases/$(database)/documents/internalReceipts/$(key)).data.id);\n    allow get: if signed() && exists(/databases/$(database)/documents/internalTracking/$(key));",1)])
+rules=rule_section(rules,'match /internalTracking/{key} {','match /limits/{uid} {',[
+ ("match /internalTracking/{key} {\n   allow get:","match /internalTracking/{key} {\n   allow delete: if canDeleteInternal(resource.data.id);\n   allow get:",1),
+ ("allow update,delete: if false;","allow update: if false;\n    allow delete: if canDeleteInternal(get(/databases/$(database)/documents/internalTracking/$(key)).data.id);",1)])
+rules=rule_section(rules,'match /notifications/{id} {','match /integrations/discord {',[
+ ("allow delete: if notifier() && due(id);","allow delete: if canDeleteRequest(id) || (notifier() && due(id));",1)])
+rules=rule_section(rules,'match /retentionJobs/{id} {','match /retentionLog/{id} {',[
+ ("allow delete: if (notifier() && due(id)) || (retentionEnabled()","allow delete: if canDeleteRequest(id) || (notifier() && due(id)) || (retentionEnabled()",1)])
+Path('backend/firestore.rules').write_text(rules)
