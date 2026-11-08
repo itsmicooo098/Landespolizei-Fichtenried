@@ -103,7 +103,7 @@ p.write_text(s)
 
 
 # Internal ticket categories, evidence, bearer-code tracking and two-way chat.
-v='internal-chat-refresh-20261108c'
+v='internal-chat-status-fix-20261108d'
 # Keep the citizen live-chat unsubscribe handle defined before event wiring.
 sub('site/leitung/assets/app.js',
  "let spark=null,auth=null,signIn=null,signOut=null,getIdTokenResult=null,httpsCallable=null,functions=null,updateProfile=null,updatePassword=null,reauthenticateWithCredential=null,EmailAuthProvider=null,loading=false;",
@@ -159,7 +159,7 @@ sub('site/assets/spark.js',
 # update internal ticket tracking status, category fields kept private.
 sub('site/assets/spark.js',
  "b.update(r,{status,internalNote:note,assignee,priority,updatedAt:now(),updatedBy:uid(),auditId:aid});await b.commit();",
- "const stamp=now();b.update(r,{status,internalNote:note,assignee,priority,updatedAt:stamp,updatedBy:uid(),auditId:aid});b.update(ref('internalTracking',old.trackingKey),{status,publicMessage,updatedAt:stamp});await b.commit();")
+ "const stamp=now();b.update(r,{status,internalNote:note,assignee,priority,updatedAt:stamp,updatedBy:uid(),auditId:aid});b.update(ref('internalTracking',old.trackingKey),{status,publicMessage:String(p.publicMessage?.value??p.publicMessage??'').trim().slice(0,2000),updatedAt:stamp});await b.commit();")
 # internal attachments are read from their own receipt tree.
 sub('site/assets/spark.js',"if(!a.cases)throw Error('Keine Berechtigung für interne Vorgänge.')","if(!(a.personnel||a.settings))throw Error('Keine Berechtigung für interne Vorgänge.')")
 sub('site/assets/spark.js',
